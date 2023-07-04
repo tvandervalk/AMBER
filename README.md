@@ -21,7 +21,7 @@ python -m pip install -U pysam
 python -m pip install -U matplotlib
 ```
 
-## Run AMBER
+## Input files
 
 To asses your ancient samples, a tab seperated file with the bamfiles to be analyzed has to be supplied. The First column of the file should contain sample name, second column should contain path to bamfile. A maximum of 4 bamfiles can be analysed and plotted in the same run (however it is recommended to analyse just one bamfile at the time).
 
@@ -40,7 +40,8 @@ chrX
 chrY
 ```
 
-### Run AMBER
+## Run AMBER
+
 ```
 ./AMBER
 --bamfiles         (default = empty)            Tab seperated file containing the sample names and path to bamfiles to be included in the analysis, required
