@@ -10,7 +10,7 @@ Questions can be addressed to tvdvalk1989@gmail.com
 ## Installation
 
 ```
-git clone XXX
+git clone https://github.com/tvandervalk/AMBER.git
 chmod +x AMBER
 ```
 
