@@ -11,6 +11,7 @@ Questions can be addressed to tvdvalk1989@gmail.com
 
 ```
 git clone https://github.com/tvandervalk/AMBER.git
+cd AMBER
 chmod +x AMBER
 ```
 
