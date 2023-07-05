@@ -121,7 +121,7 @@ with open(options.bamfiles) as f:
         for key,value in depth_dict.items():
             for contig_positions,depth_value in value.items():
                 window_depth = round(depth_value/1000,2)
-                if window_depth < average_window_depth:
+                if window_depth < (average_window_depth*10):
                     average_xaxis_line[0] += window_depth
                     average_xaxis_line[1] += 1
                 if window_depth > average_window_depth*10: #merge all windows with more than 10X the average depth
