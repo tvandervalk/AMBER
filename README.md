@@ -1,5 +1,5 @@
 # AMBER
-Analyzing Mapping Biases and Evaluating Read Reliability
+Asses Mapping Biases and Evaluating Read Reliability
 
 ## Description
 AMBER computes sequence read mapping bias, ancient DNA damage patterns, fragment length distribution and genome breadth of coverage directly from a BAM-file. 
