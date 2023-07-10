@@ -1,8 +1,10 @@
 #!/usr/bin/env python
+from __future__ import division
 import matplotlib.pyplot as plt
 import pysam
 from optparse import OptionParser
 import re
+import sys
 from os.path import exists
 
 """
@@ -41,7 +43,7 @@ plt.rcParams["figure.autolayout"] = True
 plt.rcParams['axes.linewidth'] = 1.25
 plt.rcParams['font.size'] = 14
 fig, ((ax1, ax2),(ax3,ax4)) = plt.subplots(2, 2)
-colorlist = ["dimgray","darkred","lightskyblue","darkolivegreen"]
+colorlist = ["dimgray","darkred","lightskyblue","green"]
 color_list_index = -1
 
 
@@ -50,10 +52,11 @@ set global variables
 """
 max_mismatch = 0
 max_depth = 0
-contigs_to_exclude = []
+max_read_length = 0
+max_average_coverage = 0
+contigs_to_exclude = ["*"] # * is unmapped reads 
 if options.exclude != None:
     contigs_to_exclude += open(options.exclude,"r").read().split("\n")
-
 
 """
 loop through bamfiles
@@ -75,7 +78,7 @@ with open(options.bamfiles) as f:
         color_list_index += 1
 
         focal_bamfile = (pysam.AlignmentFile(filepath, "rb"))
-  
+
         if focal_bamfile.header["HD"]["SO"] == "unsorted":
             print("Bamfile is unsorted. Only sorted bamfiles are supported. Exiting...")
             exit()
@@ -87,6 +90,7 @@ with open(options.bamfiles) as f:
         file_exists = exists(filepath + ".bai")
         if not file_exists:
             print("Creating bamfile index... ",end=" ")
+            sys.stdout.flush()
             pysam.index(filepath)
             focal_bamfile = (pysam.AlignmentFile(filepath, "rb"))
             print("Done creating bamfile index")
@@ -96,36 +100,48 @@ with open(options.bamfiles) as f:
         """
         #calculate depth per window and store in dictionary
         depth_dict = {}
+        for i in (str(pysam.idxstats(filepath)).split("\n")):
+            splitted = i.split("\t")
+            if len(splitted) > 3:
+                contig_name, contig_length = i.split("\t")[0],float(i.split("\t")[1])
+                if contig_name not in contigs_to_exclude:
+                    depth_dict[contig_name] = {}
+                    for i in range(0,int(round(contig_length/1000,0)+1)):
+                        depth_dict[contig_name][i] = 0
+
         print("Calculating depth per window...", end=" ")
+        sys.stdout.flush()
+        site_counter = 0
         for pileupcolumn in focal_bamfile.pileup(min_mapping_quality=options.min_mapq):
+            # site_counter += 1
+            # if site_counter > options.subsample:
+            #     break
             contig,pos,depth = pileupcolumn.reference_name, pileupcolumn.pos, pileupcolumn.n
-            if contig not in contigs_to_exclude:
-                if contig not in depth_dict:
-                    depth_dict[contig] = {}
+            if contig in depth_dict:
                 rounded_pos = int(round(pos/1000,0))
-                if rounded_pos not in depth_dict[contig]:
-                    depth_dict[contig][rounded_pos] = depth
-                else:
-                    depth_dict[contig][rounded_pos] += depth
+                depth_dict[contig][rounded_pos] += depth
         #calculate average depth per window
         window_depth_list = [0,0]
         for key,value in depth_dict.items():
             for contig_positions,depth_value in value.items():
-                window_depth = round(depth_value/1000,2)
-                window_depth_list[0] += window_depth
-                window_depth_list[1] += 1
+                window_depth = round(depth_value/1000,3)
+                if window_depth > 0:
+                    window_depth_list[0] += window_depth
+                    window_depth_list[1] += 1
         average_window_depth = round(window_depth_list[0]/window_depth_list[1],3)
+        if average_window_depth > max_average_coverage:
+            max_average_coverage = average_window_depth
         #plot histogram of window depth
         histogram_dict = {}
         average_xaxis_line = [0,0]
         for key,value in depth_dict.items():
             for contig_positions,depth_value in value.items():
                 window_depth = round(depth_value/1000,2)
-                if window_depth < (average_window_depth*10):
+                if window_depth < (average_window_depth*5):
                     average_xaxis_line[0] += window_depth
                     average_xaxis_line[1] += 1
-                if window_depth > average_window_depth*10: #merge all windows with more than 10X the average depth
-                    window_depth = average_window_depth*10
+                if window_depth > average_window_depth*5: #merge all windows with more than 10X the average depth
+                    window_depth = average_window_depth*5
                 if window_depth not in histogram_dict:
                     histogram_dict[window_depth] = 1
                 else:
@@ -133,12 +149,15 @@ with open(options.bamfiles) as f:
         x_axis_depth,y_axis_depth = [],[]
         all_depths = sum(histogram_dict.values())
         for key,value in histogram_dict.items():
+            depth_percentage = (value/all_depths)*100
             x_axis_depth += [key]
-            y_axis_depth += [(value/all_depths)*100]
-            if value/all_depths > max_depth:
-                max_depth = value/all_depths
+            y_axis_depth += [depth_percentage]
+            if depth_percentage > max_depth and key > 0:
+                max_depth = depth_percentage
         ax4.bar(x_axis_depth,y_axis_depth,color=colorlist[color_list_index],width=0.01,label=sample_name)#,alpha=0.5)
         ax4.axvline(x = average_xaxis_line[0]/average_xaxis_line[1], linestyle='dashed', color = colorlist[color_list_index],zorder=0)
+        # if (average_xaxis_line[0]/average_xaxis_line[1]) > max_average_coverage:
+        #     max_average_coverage = average_xaxis_line[0]/average_xaxis_line[1]
         print("Done calculating depth per window")
 
         """
@@ -159,6 +178,7 @@ with open(options.bamfiles) as f:
         loop through reads
         """
         print("Calculating mismatch rate and DNA damage...", end=" ")
+        sys.stdout.flush()
         for read in focal_bamfile.fetch():
             read_contig = read.reference_name
             if read_contig not in contigs_to_exclude:
@@ -203,7 +223,7 @@ with open(options.bamfiles) as f:
                             readpos = -1
                             for refseq_allel,read_allel in zip(refseq,newread_seq):
                                 readpos += 1
-                                if readpos < 31 and readpos < len(newread_seq)-1:
+                                if readpos < 31 and readpos < len(newread_seq)-1: # and len(newread_seq) >= 35:
                                     if refseq_allel == "C" and refseq[readpos+1] == "G":
                                         cpg_sites[readpos] += 1
                                         if read_allel == "T":
@@ -225,7 +245,9 @@ with open(options.bamfiles) as f:
         x_axis_mismatch = []
         y_axis_mismatch = []
         for i in range(301):
-            if len(mismatch_dict[i]) > 10:
+            if len(mismatch_dict[i]) > 100:
+                if i > max_read_length:
+                    max_read_length = i
                 x_axis_mismatch += [i]
                 value = mismatch_dict[i]
                 y_axis_mismatch += [sum(value)/len(value)]
@@ -239,11 +261,14 @@ with open(options.bamfiles) as f:
         total_reads = sum(readlen_dict.values())
         for i in range(301):
             if readlen_dict[i] > 0:
+                if x_axis_readlen == []:
+                    x_axis_readlen += [i-1]
+                    y_axis_readlen += [0]
                 x_axis_readlen += [i]
                 y_axis_readlen += [(readlen_dict[i]/total_reads)*100]
         
-        ax3.fill_between(x_axis_readlen, 0, y_axis_readlen, alpha=0.5,label=sample_name,color=colorlist[color_list_index])
-        ax3.plot(x_axis_readlen, y_axis_readlen,color="black",linewidth=2)
+        ax3.fill_between(x_axis_readlen, 0, y_axis_readlen, alpha=0.25,label=sample_name,color=colorlist[color_list_index])
+        ax3.plot(x_axis_readlen, y_axis_readlen,color=colorlist[color_list_index],linewidth=2,linestyle='-', marker='o',markersize=3)
 
         #plot DNA damage by read length
         for key,value in dna_damage_dict.items():
@@ -254,7 +279,8 @@ with open(options.bamfiles) as f:
                 if key == "CT":
                     y_axis_damage += [value[i]/readcounter]
                 elif key == "CpG":
-                    y_axis_damage += [value[i]/cpg_sites[i]]
+                    if cpg_sites[i] > 0:
+                        y_axis_damage += [value[i]/cpg_sites[i]]
                 elif key == "other":
                     y_axis_damage += [value[i]/(readcounter*12)] #12 is the number of possible mutations
             if key == "other":
@@ -267,16 +293,19 @@ with open(options.bamfiles) as f:
 #set up plot axis and position of legend
 ax1.set_xlabel("read length (bp)",weight='bold',fontsize=14)
 ax1.set_ylabel("mismatches per basepair",weight='bold',fontsize=14)
-ax1.set_ylim(0,max(0.01,max_mismatch*2))
+ax1.set_xlim(10,max_read_length+10)
+ax1.set_ylim(0,max(0.01,max_mismatch*1.25))
 ax2.set_ylim(0,0.5)
 ax2.set_xlim(0 - 0.5, 30 + 0.5)
 ax2.set_xlabel("distance from read end (bp)",weight='bold',fontsize=14)
 ax2.set_ylabel("mismatch frequency",weight='bold',fontsize=14)
+ax3.set_xlim(10,max_read_length+10)
 ax3.set_xlabel("read length (bp)",weight='bold',fontsize=14)
 ax3.set_ylabel("% of reads",weight='bold',fontsize=14)
 ax4.set_xlabel("depth",weight='bold',fontsize=14)
-ax4.set_ylabel("percentage of 1kb windows",weight='bold',fontsize=14)
-ax4.set_ylim(0,max_depth*150)
+ax4.set_ylabel("% of 1kb windows",weight='bold',fontsize=14)
+ax4.set_ylim(0,max_depth*1.1)
+ax4.set_xlim(0,(max_average_coverage*2.5)+1)
 ax1.legend(loc="upper right",edgecolor="black")
 ax2.legend(loc="upper right",edgecolor="black")
 ax3.legend(loc="upper right",edgecolor="black")
