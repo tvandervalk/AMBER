@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import division
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import pysam
 from optparse import OptionParser
 import re
@@ -252,7 +253,7 @@ with open(options.bamfiles) as f:
                 if sum(value)/len(value) > max_mismatch:
                     max_mismatch = sum(value)/len(value)
         ax1.scatter(x_axis_mismatch, y_axis_mismatch, s=40, alpha=1, edgecolors="k",label=sample_name,color = colorlist[color_list_index])
-        
+         
         #plot read length distribution
         x_axis_readlen = []
         y_axis_readlen = []
@@ -288,22 +289,31 @@ with open(options.bamfiles) as f:
             elif key == "CpG":
                 ax2.plot(x_axis_damage,y_axis_damage,label=sample_name + ": " + "CpG to TpG",linestyle='dashed',linewidth=2,color=colorlist[color_list_index])
 
+
 #set up plot axis and position of legend
+if max_read_length > 200:
+    x_spacing = list(range(0, max_read_length+10, 20))
+else:
+    x_spacing = list(range(0, max_read_length+10, 10))
 ax1.set_xlabel("read length (bp)",weight='bold',fontsize=14)
 ax1.set_ylabel("mismatches per basepair",weight='bold',fontsize=14)
+ax1.set_xticks(x_spacing)
 ax1.set_xlim(10,max_read_length+10)
 ax1.set_ylim(0,max(0.01,max_mismatch*1.25))
+ax2.set_xticks(list(range(0, 31, 2)))
 ax2.set_ylim(0,0.5)
 ax2.set_xlim(0 - 0.5, 30 + 0.5)
 ax2.set_xlabel("distance from read end (bp)",weight='bold',fontsize=14)
 ax2.set_ylabel("mismatch frequency",weight='bold',fontsize=14)
+ax3.set_xticks(x_spacing)
 ax3.set_xlim(10,max_read_length+10)
 ax3.set_xlabel("read length (bp)",weight='bold',fontsize=14)
 ax3.set_ylabel("% of reads",weight='bold',fontsize=14)
 ax4.set_xlabel("depth",weight='bold',fontsize=14)
 ax4.set_ylabel("% of 1kb windows",weight='bold',fontsize=14)
 ax4.set_ylim(0,max_depth*1.1)
-ax4.set_xlim(0,(max_average_coverage*2.5)+1)
+ax4.set_xlim(0,max_average_coverage*2.5 + 1)
+ax4.locator_params(nbins=20, axis='x')
 ax1.legend(loc="upper right",edgecolor="black")
 ax2.legend(loc="upper right",edgecolor="black")
 ax3.legend(loc="upper right",edgecolor="black")
