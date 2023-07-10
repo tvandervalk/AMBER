@@ -156,8 +156,6 @@ with open(options.bamfiles) as f:
                 max_depth = depth_percentage
         ax4.bar(x_axis_depth,y_axis_depth,color=colorlist[color_list_index],width=0.01,label=sample_name)#,alpha=0.5)
         ax4.axvline(x = average_xaxis_line[0]/average_xaxis_line[1], linestyle='dashed', color = colorlist[color_list_index],zorder=0)
-        # if (average_xaxis_line[0]/average_xaxis_line[1]) > max_average_coverage:
-        #     max_average_coverage = average_xaxis_line[0]/average_xaxis_line[1]
         print("Done calculating depth per window")
 
         """
