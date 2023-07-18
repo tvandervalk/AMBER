@@ -11,15 +11,10 @@ from os.path import exists
 """
 Author:		Tom van der Valk
 Contact: 	tvdvalk1989@gmail.com
-Date: 		XXX
-Citation:	XXX
+Citation:	TBA
 
 Usage:		AMBER [options]
-
-Example:	#plot aDNA diagnostics for a single bamfile
-            AMBER --bamfiles bamfile.txt --output amber_test.pdf
-		    #for more options:
-		    AMBER --help
+Example:	AMBER --bamfiles bamfile.txt --output amber_test.pdf
 """
 
 
@@ -29,8 +24,6 @@ user provided input
 usage = "usage: python %prog [options]"
 parser = OptionParser(usage=usage)
 parser.add_option("--bamfiles", action="store", type="string", dest="bamfiles", help="A tab seperated list of bamfiles to be analyzed. First column of the file should contain sample name, second column should contain path to bamfile")
-parser.add_option("--subsample", action="store", type="int", dest="subsample",default=10**12, help="Subsample bamfile to this number of reads. Default: 10^12")
-parser.add_option("--min_mapq", action="store", type="int", dest="min_mapq",default=1, help="Minimum mapping quality of reads to be included in analysis. Default: 1")
 parser.add_option("--exclude", action="store", type="string", dest="exclude", help="A file containing the chromosome/scaffold/contig names to exclude from all the analysis. Each line in the file should list one contig. Default: None")
 parser.add_option("--output", action="store", type="string", dest="output", default="amber_plot", help="Output file name. Default: adna_diagnostics.pdf")
 (options, args) = parser.parse_args()
@@ -113,10 +106,7 @@ with open(options.bamfiles) as f:
         print("Calculating depth per window...", end=" ")
         sys.stdout.flush()
         site_counter = 0
-        for pileupcolumn in focal_bamfile.pileup(min_mapping_quality=options.min_mapq):
-            # site_counter += 1
-            # if site_counter > options.subsample:
-            #     break
+        for pileupcolumn in focal_bamfile.pileup(min_mapping_quality=1):
             contig,pos,depth = pileupcolumn.reference_name, pileupcolumn.pos, pileupcolumn.n
             if contig in depth_dict:
                 rounded_pos = int(round(pos/1000,0))
@@ -135,27 +125,17 @@ with open(options.bamfiles) as f:
         #plot histogram of window depth
         histogram_dict = {}
         average_xaxis_line = [0,0]
+        all_window_depths = []
         for key,value in depth_dict.items():
             for contig_positions,depth_value in value.items():
-                window_depth = round(depth_value/1000,2)
+                window_depth = round(depth_value/1000,3)
                 if window_depth < (average_window_depth*5):
                     average_xaxis_line[0] += window_depth
                     average_xaxis_line[1] += 1
-                if window_depth > average_window_depth*5: #merge all windows with more than 10X the average depth
+                if window_depth > average_window_depth*5: #merge all windows with more than 5X the average depth
                     window_depth = average_window_depth*5
-                if window_depth not in histogram_dict:
-                    histogram_dict[window_depth] = 1
-                else:
-                    histogram_dict[window_depth] += 1
-        x_axis_depth,y_axis_depth = [],[]
-        all_depths = sum(histogram_dict.values())
-        for key,value in histogram_dict.items():
-            depth_percentage = (value/all_depths)*100
-            x_axis_depth += [key]
-            y_axis_depth += [depth_percentage]
-            if depth_percentage > max_depth and key > 0:
-                max_depth = depth_percentage
-        ax4.bar(x_axis_depth,y_axis_depth,color=colorlist[color_list_index],width=0.01,label=sample_name)#,alpha=0.5)
+                all_window_depths += [window_depth]
+        ax4.hist(all_window_depths,density=True, bins=100, color=colorlist[color_list_index],alpha=0.5,label=sample_name)
         ax4.axvline(x = average_xaxis_line[0]/average_xaxis_line[1], linestyle='dashed', color = colorlist[color_list_index],zorder=0)
         print("Done calculating depth per window")
 
@@ -180,63 +160,60 @@ with open(options.bamfiles) as f:
         sys.stdout.flush()
         for read in focal_bamfile.fetch():
             read_contig = read.reference_name
-            if read_contig not in contigs_to_exclude:
-                read_mapping_quality = read.mapping_quality
-                if read_mapping_quality >= options.min_mapq:
-                    readcounter += 1
-                    if readcounter > options.subsample:
-                        break
-                    read_length = len(read.query_sequence)
-                    read_sequence = read.query_sequence
-                    edit_distance = read.get_tag("NM")
-                    MD_string = read.get_tag("MD")
-                    cigar = read.cigarstring
-                    if "N" in read_sequence or "N" in MD_string or "I" in cigar or "D" in cigar or "N" in cigar or "S" in cigar or "H" in cigar or 'P' in cigar:
-                        continue
-                    else:
+            read_mapping_quality = read.mapping_quality
+            if read_contig not in contigs_to_exclude and read_mapping_quality > 0:
+                readcounter += 1
+                read_length = len(read.query_sequence)
+                read_sequence = read.query_sequence
+                edit_distance = read.get_tag("NM")
+                MD_string = read.get_tag("MD")
+                cigar = read.cigarstring
+                if "N" in read_sequence or "N" in MD_string or "I" in cigar or "D" in cigar or "N" in cigar or "S" in cigar or "H" in cigar or 'P' in cigar:
+                    continue
+                else:
 
-                        """
-                        recreate reference sequence
-                        """
-                        refseq = ""
-                        newread_seq = ""
-                        MD = MD_string.split()[0].rstrip('\n')
-                        MDlist = re.findall('(\d+|\D+)',MD)
-                        MDcounter = 0
-                        for e in MDlist:
-                            if e.isdigit():
-                                e = int(e)
-                                refseq += read_sequence[MDcounter:MDcounter+e]
-                                newread_seq += read_sequence[MDcounter:MDcounter+e]
-                                MDcounter += int(e)
-                            elif '^' in e:
-                                continue
-                            elif e.isalpha():
-                                refseq += e
-                                newread_seq += read_sequence[MDcounter]
-                                MDcounter += len(e)
+                    """
+                    recreate reference sequence
+                    """
+                    refseq = ""
+                    newread_seq = ""
+                    MD = MD_string.split()[0].rstrip('\n')
+                    MDlist = re.findall('(\d+|\D+)',MD)
+                    MDcounter = 0
+                    for base in MDlist:
+                        if base.isdigit():
+                            base = int(base)
+                            refseq += read_sequence[MDcounter:MDcounter+base]
+                            newread_seq += read_sequence[MDcounter:MDcounter+base]
+                            MDcounter += int(base)
+                        elif '^' in base:
+                            continue
+                        elif base.isalpha():
+                            refseq += base
+                            newread_seq += read_sequence[MDcounter]
+                            MDcounter += len(base)
 
-                        readlen_dict[min(300,read_length)] += 1
-                        mismatch_dict[min(300,read_length)] += [edit_distance/read_length]
-                        if "^" not in MD_string:
-                            readpos = -1
-                            for refseq_allel,read_allel in zip(refseq,newread_seq):
-                                readpos += 1
-                                if readpos < 31 and readpos < len(newread_seq)-1: # and len(newread_seq) >= 35:
-                                    if refseq_allel == "C" and refseq[readpos+1] == "G":
-                                        cpg_sites[readpos] += 1
-                                        if read_allel == "T":
-                                            dna_damage_dict["CpG"][readpos] += 1
-                                    if refseq_allel == read_allel:
-                                        continue
-                                    elif "N" in refseq_allel or "N" in read_allel:
-                                        continue
+                    readlen_dict[min(300,read_length)] += 1
+                    mismatch_dict[min(300,read_length)] += [edit_distance/read_length]
+                    if "^" not in MD_string:
+                        readpos = -1
+                        for refseq_allel,read_allel in zip(refseq,newread_seq):
+                            readpos += 1
+                            if readpos < 31 and readpos < len(newread_seq)-1: # and len(newread_seq) >= 35:
+                                if refseq_allel == "C" and refseq[readpos+1] == "G":
+                                    cpg_sites[readpos] += 1
+                                    if read_allel == "T":
+                                        dna_damage_dict["CpG"][readpos] += 1
+                                if refseq_allel == read_allel:
+                                    continue
+                                elif "N" in refseq_allel or "N" in read_allel:
+                                    continue
+                                else:
+                                    mutation_combination = refseq_allel + read_allel
+                                    if mutation_combination in dna_damage_dict:
+                                        dna_damage_dict[mutation_combination][readpos] += 1
                                     else:
-                                        mutation_combination = refseq_allel + read_allel
-                                        if mutation_combination in dna_damage_dict:
-                                            dna_damage_dict[mutation_combination][readpos] += 1
-                                        else:
-                                            dna_damage_dict["other"][readpos] += 1
+                                        dna_damage_dict["other"][readpos] += 1
         print("Done calculating mismatch rate and DNA damage")
                                 
                         
@@ -310,8 +287,8 @@ ax3.set_xlim(10,max_read_length+10)
 ax3.set_xlabel("read length (bp)",weight='bold',fontsize=14)
 ax3.set_ylabel("% of reads",weight='bold',fontsize=14)
 ax4.set_xlabel("depth",weight='bold',fontsize=14)
-ax4.set_ylabel("% of 1kb windows",weight='bold',fontsize=14)
-ax4.set_ylim(0,max_depth*1.1)
+ax4.set_ylabel("fraction of 1kb windows",weight='bold',fontsize=14)
+#ax4.set_ylim(0,max_depth*1.1)
 ax4.set_xlim(0,max_average_coverage*2.5 + 1)
 ax4.locator_params(nbins=20, axis='x')
 ax1.legend(loc="upper right",edgecolor="black")
