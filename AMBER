@@ -15,7 +15,7 @@ Contact: 	tvdvalk1989@gmail.com
 Citation:	TBA
 
 Usage:		AMBER [options]
-Example:	AMBER --bamfiles bamfile.txt --output amber_test.pdf
+Example:	AMBER --bamfiles bamfile.txt --output amber_test
 """
 
 
@@ -28,7 +28,7 @@ parser.add_option("--bamfiles", action="store", type="string", dest="bamfiles", 
 parser.add_option("--exclude", action="store", type="string", dest="exclude", help="A file containing the chromosome/scaffold/contig names to exclude from all the analysis. Each line in the file should list one contig. Default: None")
 parser.add_option("--errorbars", action="store_true", dest="errorbars", default=False, help="plot the 95% confidence intervals in the mistmatch rate plot")
 parser.add_option("--counts", action="store_true", dest="counts", default="False", help="Plot the data as counts instead of fractions.")
-parser.add_option("--output", action="store", type="string", dest="output", default="amber_plot", help="Output file name. Default: amber_plot.pdf")
+parser.add_option("--output", action="store", type="string", dest="output", default="amber", help="Output file name")
 
 (options, args) = parser.parse_args()
 
@@ -401,4 +401,4 @@ ax3.legend(loc="upper right",edgecolor="black")
 ax4.legend(loc="upper right",edgecolor="black")
 plt.savefig(options.output + ".pdf")
 plt.close()
-print("\n" + "Finished plotting"
+print("\n" + "Finished plotting")
