@@ -41,6 +41,16 @@ def reverse_complement(dna_sequence):
     return reverse_complement_seq
 
 
+def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█'):
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filled_length = int(length * iteration // total)
+    bar = fill * filled_length + '-' * (length - filled_length)
+    sys.stdout.write('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix)),
+    sys.stdout.flush()
+    if iteration == total:
+        sys.stdout.write('\n')
+    return
+
 """
 set global plotting parameters
 """
@@ -63,7 +73,7 @@ if options.exclude != None:
 	contigs_to_exclude += open(options.exclude,"r").read().split("\n")
 
 """
-open file for sample specific statistics
+outputfile for sample specific statistics
 """
 outputfile = open(options.output + ".txt","w")
 	
@@ -85,6 +95,7 @@ with open(options.bamfiles) as f:
 		sample_name = line.strip().split("\t")[0]
 		outputfile.write("-" * 100 + "\n")
 		print()
+		print("\n" + "-" * 70)
 		print("Processing sample: " + sample_name)
 		outputfile.write("sample: " + sample_name + "\n")
 		filepath = line.strip().split("\t")[1].strip()
@@ -113,23 +124,36 @@ with open(options.bamfiles) as f:
 		"""
 		#calculate depth per window and store in dictionary
 		depth_dict = {}
+		contig_length_dict = {}
+		total_reads = 0
+		total_sites = 0
 		for i in (str(pysam.idxstats(filepath)).split("\n")):
 			splitted = i.split("\t")
 			if len(splitted) > 3 and splitted[0] != "*":
 				contig_name, contig_length = i.split("\t")[0],float(i.split("\t")[1])
 				if contig_name not in contigs_to_exclude:
+					total_reads += int(splitted[2])
+					total_sites += int(splitted[1])
+					contig_length_dict[contig_name] = contig_length
 					depth_dict[contig_name] = {}
 					for i in range(0,int(round(contig_length/1000,0)+1)):
 						depth_dict[contig_name][i] = 0
 
-		print("Calculating depth per window...", end=" ")
+		print("Calculating depth per window...", end="\n")
 		sys.stdout.flush()
 		site_counter = 0
+		contig_list = []
 		for pileupcolumn in focal_bamfile.pileup(min_mapping_quality=1):
 			contig,pos,depth = pileupcolumn.reference_name, pileupcolumn.pos, pileupcolumn.n
 			if contig in depth_dict:
 				rounded_pos = int(round(pos/1000,0))
 				depth_dict[contig][rounded_pos] += depth
+				if contig not in contig_list:
+					contig_list += [contig]
+				site_counter += 1
+				if site_counter % 1000000 == 0:
+					site_progress = sum([contig_length_dict[i] for i in contig_list[0:-1]]) + pos
+					print_progress_bar(site_progress, total_sites, prefix='Progress:', suffix='', length=50)
 		#calculate average depth per window
 		window_depth_list = [0,0]
 		for key,value in depth_dict.items():
@@ -172,7 +196,8 @@ with open(options.bamfiles) as f:
 			hist = [x / sum(hist) for x in hist]
 			ax4.bar(bin_edges[1:], hist, width=bin_edges[1] - bin_edges[0], color=colorlist[color_list_index],alpha=0.5,label=sample_name)
 		ax4.axvline(x = average_xaxis_line[0]/average_xaxis_line[1], linestyle='dashed', color = colorlist[color_list_index],zorder=0)
-		print("Done calculating depth per window")
+		print_progress_bar(total_sites, total_sites, prefix='Progress:', suffix='', length=50)
+		print("Done" + "\n")
 
 		"""
 		set sample specific variables
@@ -193,14 +218,15 @@ with open(options.bamfiles) as f:
 		"""
 		loop through reads
 		"""
-		print("Calculating mismatch rate and DNA damage...", end=" ")
+		print("Calculating mismatch rate and DNA damage...", end="\n")
 		sys.stdout.flush()
 		for read in focal_bamfile.fetch():
-			
 			read_contig = read.reference_name
 			read_mapping_quality = read.mapping_quality
 			if read_contig not in contigs_to_exclude and read_mapping_quality > 0:
 				readcounter += 1
+				if readcounter % 10000 == 0:
+					print_progress_bar(readcounter, total_reads, prefix='Progress:', suffix='', length=50)
 				read_length = len(read.query_sequence)
 				read_sequence = read.query_sequence
 				edit_distance = read.get_tag("NM")
@@ -250,10 +276,6 @@ with open(options.bamfiles) as f:
 										other = False
 										if newread_seq[readpos] == "T":
 											dna_damage_dict["CT"][readpos] += 1
-									# if refseq[readpos] == "T" and newread_seq[readpos] == "C" and refseq[readpos+1] != "G" and newread_seq[readpos+1] != "G":
-									# 	c_sites[readpos] += 1
-									# 	dna_damage_dict["CT"][readpos] += 1
-									# 	other = False	
 									elif refseq[readpos] == "C" and refseq[readpos+1] == "G":
 										cpg_sites[readpos] += 1
 										other = False
@@ -263,11 +285,10 @@ with open(options.bamfiles) as f:
 										if refseq[readpos] not in "CT" and newread_seq[readpos] not in "CT" and refseq[readpos]+newread_seq[readpos] != "GA":
 											other_sites[readpos] += 1
 											if refseq[readpos] != newread_seq[readpos]:
-												#print(refseq[readpos],newread_seq[readpos])
 												dna_damage_dict["other"][readpos] += 1
 									   
-
-		print("Done calculating mismatch rate and DNA damage")
+		print_progress_bar(readcounter, total_reads, prefix='Progress:', suffix='', length=50)
+		print("Done")
 								
 						
 		#plot mistmatch rate per read length
@@ -380,4 +401,4 @@ ax3.legend(loc="upper right",edgecolor="black")
 ax4.legend(loc="upper right",edgecolor="black")
 plt.savefig(options.output + ".pdf")
 plt.close()
-print("Finished plotting")
+print("\n" + "Finished plotting"
