@@ -68,9 +68,7 @@ set global variables
 max_mismatch = 0
 max_read_length = 0
 max_average_coverage = 0
-contigs_to_exclude = ["*"] # * is unmapped reads 
-if options.exclude != None:
-	contigs_to_exclude += open(options.exclude,"r").read().split("\n")
+
 
 """
 outputfile for sample specific statistics
@@ -107,6 +105,14 @@ with open(options.bamfiles) as f:
 			print("Bamfile is unsorted. Only sorted bamfiles are supported. Exiting...")
 			exit()
 
+
+		if options.exclude != None:
+			contigs_to_exclude = ["*"] # * is unmapped reads 
+			with open(options.exclude) as f1:
+				for line in f1.readlines():
+					splitted = line.strip().split("\t")
+					if splitted[1] == sample_name:
+						contigs_to_exclude += [splitted[0]]
 
 		"""
 		create bamfile index if it does not exist
@@ -162,42 +168,46 @@ with open(options.bamfiles) as f:
 				if window_depth > 0:
 					window_depth_list[0] += window_depth
 					window_depth_list[1] += 1
-		average_window_depth = round(window_depth_list[0]/window_depth_list[1],3)
-		if average_window_depth > max_average_coverage:
-			max_average_coverage = average_window_depth
-		#plot histogram of window depth
-		histogram_dict = {}
-		average_xaxis_line = [0,0]
-		all_window_depths = []
-		for key,value in depth_dict.items():
-			for contig_positions,depth_value in value.items():
-				window_depth = round(depth_value/1000,3)
-				if window_depth < (average_window_depth*5):
-					average_xaxis_line[0] += window_depth
-					average_xaxis_line[1] += 1
-				if window_depth > average_window_depth*5: #merge all windows with more than 5X the average depth
-					window_depth = average_window_depth*5
-				if window_depth not in histogram_dict:
-					histogram_dict[window_depth] = 1
-				else:
-					histogram_dict[window_depth] += 1
-				all_window_depths += [window_depth]
-		hist, bin_edges = np.histogram(all_window_depths, bins=100)
-		max_depth = max(histogram_dict.keys())
-		outputfile.write("average depth per window: " + str(round(average_xaxis_line[0]/average_xaxis_line[1],4)) + "\n" + "\n") #write average depth per window to file
-		outputfile.write("WINDOW_DEPTH" + "\t" + "NUMBER_OF_WINDOWS" + "\n") #write window counts by depth to file
-		for i,j in zip(hist,bin_edges[1:-1]):
-			outputfile.write(str(round(j,4)) + "\t" + str(i) + "\n")
-		outputfile.write(">" + str(round(bin_edges[-1],4)) + "\t" + str(hist[-1]) + "\n")
-		outputfile.write("-" * 100 + "\n")
-		if options.counts == True:
-			ax4.bar(bin_edges[1:], hist, width=bin_edges[1] - bin_edges[0], color=colorlist[color_list_index],alpha=0.5,label=sample_name)
+		if window_depth_list[1] == 0:
+			print("No reads found on analysed contigs. Exiting...")
+			exit()
 		else:
-			hist = [x / sum(hist) for x in hist]
-			ax4.bar(bin_edges[1:], hist, width=bin_edges[1] - bin_edges[0], color=colorlist[color_list_index],alpha=0.5,label=sample_name)
-		ax4.axvline(x = average_xaxis_line[0]/average_xaxis_line[1], linestyle='dashed', color = colorlist[color_list_index],zorder=0)
-		print_progress_bar(total_sites, total_sites, prefix='Progress:', suffix='', length=50)
-		print("Done" + "\n")
+			average_window_depth = round(window_depth_list[0]/window_depth_list[1],3)
+			if average_window_depth > max_average_coverage:
+				max_average_coverage = average_window_depth
+			#plot histogram of window depth
+			histogram_dict = {}
+			average_xaxis_line = [0,0]
+			all_window_depths = []
+			for key,value in depth_dict.items():
+				for contig_positions,depth_value in value.items():
+					window_depth = round(depth_value/1000,3)
+					if window_depth < (average_window_depth*5):
+						average_xaxis_line[0] += window_depth
+						average_xaxis_line[1] += 1
+					if window_depth > average_window_depth*5: #merge all windows with more than 5X the average depth
+						window_depth = average_window_depth*5
+					if window_depth not in histogram_dict:
+						histogram_dict[window_depth] = 1
+					else:
+						histogram_dict[window_depth] += 1
+					all_window_depths += [window_depth]
+			hist, bin_edges = np.histogram(all_window_depths, bins=100)
+			max_depth = max(histogram_dict.keys())
+			outputfile.write("average depth per window: " + str(round(average_xaxis_line[0]/average_xaxis_line[1],4)) + "\n" + "\n") #write average depth per window to file
+			outputfile.write("WINDOW_DEPTH" + "\t" + "NUMBER_OF_WINDOWS" + "\n") #write window counts by depth to file
+			for i,j in zip(hist,bin_edges[1:-1]):
+				outputfile.write(str(round(j,4)) + "\t" + str(i) + "\n")
+			outputfile.write(">" + str(round(bin_edges[-1],4)) + "\t" + str(hist[-1]) + "\n")
+			outputfile.write("-" * 100 + "\n")
+			if options.counts == True:
+				ax4.bar(bin_edges[1:], hist, width=bin_edges[1] - bin_edges[0], color=colorlist[color_list_index],alpha=0.5,label=sample_name)
+			else:
+				hist = [x / sum(hist) for x in hist]
+				ax4.bar(bin_edges[1:], hist, width=bin_edges[1] - bin_edges[0], color=colorlist[color_list_index],alpha=0.5,label=sample_name)
+			ax4.axvline(x = average_xaxis_line[0]/average_xaxis_line[1], linestyle='dashed', color = colorlist[color_list_index],zorder=0)
+			print_progress_bar(total_sites, total_sites, prefix='Progress:', suffix='', length=50)
+			print("Done" + "\n")
 
 		"""
 		set sample specific variables
@@ -287,7 +297,7 @@ with open(options.bamfiles) as f:
 											if refseq[readpos] != newread_seq[readpos]:
 												dna_damage_dict["other"][readpos] += 1
 									   
-		print_progress_bar(readcounter, total_reads, prefix='Progress:', suffix='\n', length=50)
+		print_progress_bar(total_reads, total_reads, prefix='Progress:', suffix='', length=50)
 		print("Done")
 								
 						
@@ -296,7 +306,7 @@ with open(options.bamfiles) as f:
 		y_axis_mismatch = []
 		y_err = []
 		for i in range(301):
-			if len(mismatch_dict[i]) > 100:
+			if len(mismatch_dict[i]) > 10:
 				if i > max_read_length:
 					max_read_length = i
 				x_axis_mismatch += [i]
@@ -376,7 +386,7 @@ ax1.set_xlabel("read length (bp)",weight='bold',fontsize=14)
 ax1.set_ylabel("mismatches per basepair",weight='bold',fontsize=14)
 ax1.set_xticks(x_spacing)
 ax1.set_xlim(10,max_read_length+10)
-ax1.set_ylim(0,max(0.01,max_mismatch*1.25))
+#ax1.set_ylim(0,max(0.01,max_mismatch*1.25))
 ax2.set_xticks(list(range(0, 31, 2)))
 ax2.set_ylim(0,0.5)
 ax2.set_xlim(0 - 0.5, 30 + 0.5)
