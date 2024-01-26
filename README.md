@@ -3,8 +3,7 @@ Asses Mapping Biases and Evaluating Read Reliability
 
 ## Description
 AMBER computes sequence read mapping bias, ancient DNA damage patterns, fragment length distribution and genome breadth of coverage directly from a BAM-file. 
-No external packages except for python3, matplotlib and pysam are required.
-Questions can be addressed to tvdvalk1989@gmail.com
+No external packages except for python3, numpy, matplotlib and pysam are required.
 
 ## Installation
 
@@ -14,10 +13,11 @@ cd AMBER
 chmod +x AMBER
 ```
 
-If matplotlib and/or pysam are not yet installed:
+If matplotlib,numpy and/or pysam are not yet installed:
 ```
 python -m pip install -U pysam
 python -m pip install -U matplotlib
+python -m pip install -U numpy
 ```
 
 ## Input files
