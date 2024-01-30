@@ -1,3 +1,4 @@
+<img width="1787" alt="Screenshot 2024-01-30 at 08 05 46" src="https://github.com/tvandervalk/AMBER/assets/64150803/f4d7ef24-0c0d-4a75-bf10-60a6d4431f2b">
 # AMBER
 Asses Mapping Biases and Evaluating Read Reliability
 
