@@ -106,13 +106,11 @@ with open(options.bamfiles) as f:
 			exit()
 
 
+		contigs_to_exclude = ["*"] # * is unmapped reads 
 		if options.exclude != None:
-			contigs_to_exclude = ["*"] # * is unmapped reads 
 			with open(options.exclude) as f1:
 				for line in f1.readlines():
-					splitted = line.strip().split("\t")
-					if splitted[1] == sample_name:
-						contigs_to_exclude += [splitted[0]]
+					contigs_to_exclude += [line.strip()]
 
 		"""
 		create bamfile index if it does not exist
