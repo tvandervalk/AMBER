@@ -52,5 +52,5 @@ chrY
 --counts           (default = not set)          Plot the data as counts instead of fractions
 ```
 
-## AMBER output example for a ~1 million year old Mammuthus genome
+## AMBER output example for a ~1 million year old Mammuthus genome (UDG treated)
 <img width="1787" alt="Screenshot 2024-01-30 at 08 05 46" src="https://github.com/tvandervalk/AMBER/assets/64150803/f4d7ef24-0c0d-4a75-bf10-60a6d4431f2b">
