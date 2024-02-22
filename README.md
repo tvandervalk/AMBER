@@ -22,7 +22,7 @@ python -m pip install -U numpy
 
 ## Input files
 
-To asses your ancient samples, a tab seperated file with the bamfiles to be analyzed has to be supplied. The First column of the file should contain sample name, second column should contain path to bamfile. A maximum of 6 bamfiles can be analysed and plotted in the same run (however it is recommended to analyse just one bamfile at the time).
+To assess your ancient samples, a tab seperated file with the bamfiles to be analyzed has to be supplied. The First column of the file should contain sample name, second column should contain path to bamfile. A maximum of 6 bamfiles can be analysed and plotted in the same run (however it is recommended to analyse just one bamfile at the time).
 
 ### Required input file
 ```
