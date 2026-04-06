@@ -84,4 +84,4 @@ AMBER produces two files:
 
 ## Citation
 
-TBA
+Stephanie Dolenz, Tom van der Valk, Chenyu Jin, Jonas Oppenheimer, Muhammad Bilal Sharif, Ludovic Orlando, Beth Shapiro, Love Dalén, Peter D Heintzman, Unravelling reference bias in ancient DNA datasets, Bioinformatics, Volume 40, Issue 7, July 2024, btae436, https://doi.org/10.1093/bioinformatics/btae436
